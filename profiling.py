@@ -22,11 +22,14 @@ BOX_SIZE = 100.0             # Length of the periodic box side
 SOFTENING = 0.1              # Softening length to prevent singularities at r=0
 G = 1.0                      # Gravitational constant (code units)
 H0 = 0.07                     # Hubble parameter (expansion rate)
-DT = 0.002                    # Time step
+DT = 0.02                    # Time step
 N_STEPS = 2500                   # Total simulation steps
 A_START = 0.01               # Starting scale factor
 A_END = 1.0                 # Ending scale factor
-OMEGA_M = 1.0              # Matter density parameter
+
+# --- COSMOLOGICAL PARAMETERS ---
+OMEGA_M = 0.3                # Standard LCDM matter density
+SIGMA_8 = 0.8                # Normalization of the power spectrum
 
 # --- BARNES-HUT PARAMETERS ---
 THETA = 0.5                  # Opening angle for MAC (0.5 is standard trade-off)
@@ -77,7 +80,15 @@ def generate_zeldovich_ics(n_grid, box_size, seed=42, spectral_index=2.0, amplit
     k = cp.fft.fftfreq(n_grid, d=box_size/n_grid) * 2 * cp.pi
     kx, ky, kz = cp.meshgrid(k, k, k, indexing='ij')
     k_sq = kx**2 + ky**2 + kz**2 # coordinates in fourier space (squared)
-    k_sq[0,0,0] = 1e-10 # Avoid division by zero at DC component
+    k_mag = cp.sqrt(k_sq)
+    k_mag[0,0,0] = 1e-10 # Avoid division by zero at DC component
+
+    gamma = OMEGA_M * H0 # Shape parameter
+    q = k_mag / gamma
+
+    # BBKS Analytical fit
+    T = (cp.log(1.0 + 2.34 * q) / (2.34 * q)) * \
+        (1.0 + 3.89 * q + (16.1 * q)**2 + (5.46 * q)**3 + (6.71 * q)**4)**-0.25
 
     # The random Gaussian field in Fourier space
     random_field = cp.random.normal(0, 1, (n_grid, n_grid, n_grid)) + \
@@ -85,7 +96,7 @@ def generate_zeldovich_ics(n_grid, box_size, seed=42, spectral_index=2.0, amplit
     
 
     # aplly power spectrum
-    power_spectrum = 1.0 / (k_sq ** (spectral_index / 2.0)) # P(k) ~ k^-2
+    power_spectrum = (k_mag**spectral_index) * (T**2)
     power_spectrum[0,0,0] = 0
     delta_k = random_field * cp.sqrt(power_spectrum)
 
@@ -475,12 +486,13 @@ def compute_forces_kernel(pos, mass, children, node_mass, node_com,
     force[i, 2] = acc_z
 
 @cuda.jit
-def integrate_kernel(pos, vel, force, dt, box_size, drag_factor):
+def integrate_kernel(pos, vel, force, dt, box_size, a, h_rate):
     """
-    Updates positions and velocities.
-    Includes 'drag_factor' to simulate Hubble expansion drag (a(t)).
-    v_{i+1} = v_i + a * dt
-    x_{i+1} = x_i + v_{i+1} * dt
+    Updates positions and velocities using Comoving Coordinates.
+    
+    Parameters:
+    - a: Current scale factor
+    - h_rate: Current Hubble parameter H(a)
     """
     i = cuda.grid(1)
     if i >= pos[0].shape[0]:
@@ -489,23 +501,18 @@ def integrate_kernel(pos, vel, force, dt, box_size, drag_factor):
     pos_x, pos_y, pos_z = pos
     vel_x, vel_y, vel_z = vel
 
-    vx = vel_x[i] + force[i, 0] * dt
-    vy = vel_y[i] + force[i, 1] * dt
-    vz = vel_z[i] + force[i, 2] * dt
+    # 1. Comoving Force Scaling: Force drops as 1/a^2
+    # 2. Hubble Drag: 2 * H(a) * v
+    acc_x = (force[i, 0] / (a * a)) - (2.0 * h_rate * vel_x[i])
+    acc_y = (force[i, 1] / (a * a)) - (2.0 * h_rate * vel_y[i])
+    acc_z = (force[i, 2] / (a * a)) - (2.0 * h_rate * vel_z[i])
 
-    vx *= drag_factor
-    vy *= drag_factor
-    vz *= drag_factor
-    
-    max_v = box_size * 0.1 / dt
-    v_sq = vx*vx + vy*vy + vz*vz
-    if v_sq > max_v*max_v:
-        scale = max_v / math.sqrt(v_sq)
-        vx *= scale
-        vy *= scale
-        vz *= scale
+    # Update Velocity
+    vx = vel_x[i] + acc_x * dt
+    vy = vel_y[i] + acc_y * dt
+    vz = vel_z[i] + acc_z * dt
 
-    # Update Position
+    # Update Position (in comoving Mpc or code units)
     px = pos_x[i] + vx * dt
     py = pos_y[i] + vy * dt
     pz = pos_z[i] + vz * dt
@@ -519,7 +526,7 @@ def integrate_kernel(pos, vel, force, dt, box_size, drag_factor):
     if py < 0: py += box_size
     if pz < 0: pz += box_size
 
-    # Store
+    # Store back to GPU arrays
     vel_x[i] = vx
     vel_y[i] = vy
     vel_z[i] = vz
@@ -629,9 +636,9 @@ def render_3d_density_kernel(pos, grid, mvp, width, height):
         iy = int(screen_y)
         
         if 0 <= ix < width and 0 <= iy < height:
-            # Splat density
-            # Depth weighting could be added here (1/c_w), but flat 1.0 looks good for "glowing" gas
-            cuda.atomic.add(grid, (iy, ix), 1.0)
+            
+            weight = 1.0 * inv_w
+            cuda.atomic.add(grid, (iy, ix), weight)
 
 def generate_3d_frame(pos_d, step):
     """
@@ -793,7 +800,8 @@ with tqdm(range(N_STEPS), desc="Simulating") as pbar:
                                                force_d, THETA, G, SOFTENING, BOX_SIZE, 
                                                root_idx_d, i_offset)
             
-        integrate_kernel[BPG, TPB](pos_d, vel_d, force_d, DT, BOX_SIZE, drag_factor)
+        h_rate = H0 * math.sqrt(OMEGA_M * (a**-3) + (1.0 - OMEGA_M))            
+        integrate_kernel[BPG, TPB](pos_d, vel_d, force_d, DT, BOX_SIZE, a, h_rate)
     
         generate_3d_frame_gpu(pos_d, step, video_buffer_d)
         a += delta_a
