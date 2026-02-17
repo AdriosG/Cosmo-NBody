@@ -127,6 +127,31 @@ You can execute simulation via `main.py` file.
 
 ---
 
+## 📷 Some Renders!
+
+Here are some renders made troughout the developpment of this project.
+
+**Some Nice Ones:**
+
+|  |  |
+| :---: | :---: |
+| <img src="assets/renders/render_1.webp" style="width:350px; height:350px; object-fit:cover;"><br>**Supernova Simulation** | <img src="assets/renders/render_2.webp" width="350"><br>**Dark Energy Rendering** |
+| <img src="assets/renders/render_3.webp" width="350"><br>**Density Rendering** | <img src="assets/renders/render_4.webp" width="350"><br>**Galaxy-scale Gravity Pit** |
+
+
+
+**The fails:**
+
+|  |  |
+| :---: | :---: |
+| <img src="assets/renders/fail_render_1.webp" style="width:350px; height:350px; object-fit:cover;"><br>**Gravity Tests** | <img src="assets/renders/fail_render_2.webp" width="350"><br>**Initial conditions Tests** |
+| <img src="assets/renders/fail_render_3.webp" width="350"><br>**Non-Conservative Energy Bug** | <img src="assets/renders/fail_render_4.webp" width="350"><br>**Combined Issues** |
+| <img src="assets/renders/fail_render_5.webp" width="350"><br>**Zel'Dovich Trials** | <img src="assets/renders/fail_render_6.webp" width="350"><br>**Camera Movement Fail** |
+
+
+
+---
+
 ## 🤝 Open Source & Licensing
 
 This project is an open framework for high-performance astrophysical programming in Python. Contributions regarding multi-GPU scaling (via NCCL/MPI) or higher-order integrators are actively welcomed.
