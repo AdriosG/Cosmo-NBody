@@ -3,7 +3,7 @@
 
   <br>
 
-  # 🌌 Cosmo-NBody GPU: High-Performance Cosmological Simulation
+  # Cosmo-NBody GPU: High-Performance Cosmological Simulation
 
   [![Python 3.x](https://img.shields.io/badge/Python-3.x-blue.svg)](https://python.org)
   [![CuPy](https://img.shields.io/badge/CuPy-CUDA-green.svg)](https://cupy.dev/)
@@ -21,7 +21,7 @@ It implements a completely custom, parallelized Barnes-Hut octree, generates cos
 
 ---
 
-## 🔬 Core Physics & Algorithmic Architecture
+## Core Physics & Algorithmic Architecture
 
 ### 1. Cosmological Initial Conditions (Zel'dovich Approximation)
 Standard random distributions do not accurately represent the early universe. This engine generates initial conditions by applying the [**Zel'dovich Approximation**](https://arxiv.org/pdf/1401.5466) to a primordial power spectrum.
@@ -57,7 +57,7 @@ Instead of exporting coordinates to an external engine, rendering is handled int
 
 ---
 
-## 🛠️ System Requirements & Installation
+## System Requirements & Installation
 
 **Hardware:**
 * A CUDA-capable NVIDIA GPU (Minimum 8GB VRAM recommended for batch sizes of $5,000 - 10,000$ and $N_{bodies} = 2,097,152$).
@@ -104,7 +104,7 @@ You can execute simulation via `main.py` file.
 
 ---
 
-## 📂 Structure
+## Structure
 
 ```Plaintext
 ├── main.py                     # Entry point & high-level execution
@@ -152,7 +152,7 @@ Here are some renders made troughout the developpment of this project.
 
 ---
 
-## 🤝 Open Source & Licensing
+## Open Source & Licensing
 
 This project is an open framework for high-performance astrophysical programming in Python. Contributions regarding multi-GPU scaling (via NCCL/MPI) or higher-order integrators are actively welcomed.
 
