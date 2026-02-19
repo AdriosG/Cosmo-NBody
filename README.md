@@ -15,9 +15,12 @@
 
 > A purely Python-based, fully GPU-accelerated $N$-Body simulation engine designed to model the gravitational evolution of the cosmic web.
 
-**Cosmo-NBody GPU** pushes the boundaries of Python in High-Performance Computing (HPC). By bypassing standard CPU bottlenecks, this engine simulates over 2 million interacting dark matter particles ($N = 128^3$) natively in VRAM. 
+ 
+**Cosmo-NBody GPU** is a proof of concept to demonstrate the performances of Python in High-Performance Computing (HPC). By bypassing standard CPU bottlenecks, this engine simulates over 2 million interacting dark matter particles ($N = 128^3$) natively in VRAM. 
 
 It implements a completely custom, parallelized Barnes-Hut octree, generates cosmological initial conditions via the Zel'dovich Approximation, and includes an in-house volumetric density renderer driven by CUDA atomic operations.
+
+The comsological accuracy aspect of the project is largely under exploited here. Futur improvement will primarily include this aspect. 
 
 ---
 
