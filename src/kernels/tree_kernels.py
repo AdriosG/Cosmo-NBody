@@ -260,3 +260,55 @@ def reset_tree_buffers(child, parent, counters, root_idx):
         child[i, 1] = -1
         parent[i] = -1
         counters[i] = 0
+
+@cuda.jit
+def build_top_tree_cache(child, root_idx, top_nodes, node_to_cache, cache_size):
+    """
+    Single-threaded CUDA kernel to perform a Breadth-First Search (BFS) 
+    and extract the top N nodes of the tree for shared memory caching.
+    
+    Param:
+    :child: DeviceArray containing child indices.
+    :root_idx: DeviceArray containing the root index.
+    :top_nodes: Output DeviceArray (size cache_size) to store the cached node indices.
+    :node_to_cache: Output DeviceArray mapping global node indices to cache indices.
+    :cache_size: int, maximum number of nodes to cache.
+    """
+
+    if cuda.grid(1) != 0:
+        return
+        
+    root = root_idx[0]
+    if root == -1:
+        return
+        
+
+    top_nodes[0] = root
+    node_to_cache[root] = 0
+    
+    read_idx = 0
+    write_idx = 1
+    
+
+    while read_idx < write_idx and write_idx < cache_size:
+        curr = top_nodes[read_idx]
+        
+
+        c1 = child[curr, 0]
+        if c1 != -1 and write_idx < cache_size:
+            top_nodes[write_idx] = c1
+            node_to_cache[c1] = write_idx
+            write_idx += 1
+            
+
+        c2 = child[curr, 1]
+        if c2 != -1 and write_idx < cache_size:
+            top_nodes[write_idx] = c2
+            node_to_cache[c2] = write_idx
+            write_idx += 1
+            
+        read_idx += 1
+        
+    while write_idx < cache_size:
+        top_nodes[write_idx] = -1
+        write_idx += 1
