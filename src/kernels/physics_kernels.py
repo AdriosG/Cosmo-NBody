@@ -1,5 +1,5 @@
 import numba
-from numba import cuda
+from numba import cuda, float32, int32
 import math
 
 
@@ -11,8 +11,8 @@ This module contains CUDA kernels for computing the physics behind the simulatio
 
 """
 
-@cuda.jit
-def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, force, theta, G, soft, box, root, off):
+@cuda.jit(fastmath=True)
+def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, force, theta, G, soft, box, root, cache_size, top_nodes, node_to_cache, off):
 
     """
     CUDA kernel to compute gravitational forces on particles using a Barnes-Hut tree.
@@ -46,14 +46,39 @@ def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, f
     """
 
     tid = cuda.grid(1)
+    tx = cuda.threadIdx.x
     i = tid + off
+
+    sh_mass = cuda.shared.array(cache_size, dtype=float32)
+    sh_com_x = cuda.shared.array(cache_size, dtype=float32)
+    sh_com_y = cuda.shared.array(cache_size, dtype=float32)
+    sh_com_z = cuda.shared.array(cache_size, dtype=float32)
+    sh_min_x = cuda.shared.array(cache_size, dtype=float32)
+    sh_max_x = cuda.shared.array(cache_size, dtype=float32)
+    sh_child_l = cuda.shared.array(cache_size, dtype=int32)
+    sh_child_r = cuda.shared.array(cache_size, dtype=int32)
+
+    if tx < cache_size:
+        n_idx = top_nodes[tx]
+        if n_idx != -1:
+            sh_mass[tx] = n_mass[n_idx]
+            sh_com_x[tx] = n_com[n_idx, 0]
+            sh_com_y[tx] = n_com[n_idx, 1]
+            sh_com_z[tx] = n_com[n_idx, 2]
+            sh_min_x[tx] = n_min[n_idx, 0]
+            sh_max_x[tx] = n_max[n_idx, 0]
+            sh_child_l[tx] = children[n_idx, 0]
+            sh_child_r[tx] = children[n_idx, 1]
+            
+    cuda.syncthreads()
+
     if i >= pos_x.shape[0]: 
         return
     
     px, py, pz = pos_x[i], pos_y[i], pos_z[i]
     ax, ay, az = 0.0, 0.0, 0.0
     
-    stack = cuda.local.array(128, dtype=numba.int32) 
+    stack = cuda.local.array(64, dtype=numba.int32) 
     stack_top = 0
     stack[stack_top] = root[0]
     stack_top += 1
@@ -64,13 +89,34 @@ def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, f
 
         stack_top -= 1
         node = stack[stack_top]
-        nm = n_mass[node]
+        c_idx = node_to_cache[node]
+        in_cache = c_idx != -1
+
+        if in_cache:
+            nm = sh_mass[c_idx]
+            n_cx = sh_com_x[c_idx]
+            n_cy = sh_com_y[c_idx]
+            n_cz = sh_com_z[c_idx]
+            n_mx = sh_min_x[c_idx]
+            n_mxx = sh_max_x[c_idx]
+            c1 = sh_child_l[c_idx]
+            c2 = sh_child_r[c_idx]
+        else:
+            nm = n_mass[node]
+            n_cx = n_com[node, 0]
+            n_cy = n_com[node, 1]
+            n_cz = n_com[node, 2]
+            n_mx = n_min[node, 0]
+            n_mxx = n_max[node, 0]
+            c1 = children[node, 0]
+            c2 = children[node, 1]
+
         if nm <= 0: 
             continue
-        
-        dx = n_com[node, 0] - px
-        dy = n_com[node, 1] - py
-        dz = n_com[node, 2] - pz
+
+        dx = n_cx - px
+        dy = n_cy - py
+        dz = n_cz - pz
         
         dx -= round(dx)
         dy -= round(dy)
@@ -78,37 +124,32 @@ def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, f
         
         d2 = dx*dx + dy*dy + dz*dz
         
-        is_leaf = (children[node, 0] == -1)
-        use_node = is_leaf
+        is_leaf = (c1 == -1)
+        sx = n_mxx - n_mx
+        sx = box if sx > box * 0.5 else sx
         
-        if not is_leaf:
-            sx = n_max[node, 0] - n_min[node, 0]
-            if sx > box * 0.5: sx = box 
-            if (sx*sx) < theta_sq * d2: use_node = True
-            
+        mac_pass = (sx * sx) < (theta_sq * d2)
+        use_node = is_leaf or mac_pass
+        
         if use_node:
             if d2 > 1e-7:
                 d_inv = 1.0 / math.sqrt(d2 + soft*soft)
-                f = G * nm * (d_inv*d_inv*d_inv)
+                f = G * nm * (d_inv * d_inv * d_inv)
                 ax += f * dx
                 ay += f * dy
                 az += f * dz
-        elif stack_top + 2 < 128:
-            c1 = children[node, 0]
-            c2 = children[node, 1]
-
-            if c1 != -1:
-                stack[stack_top] = c2
-                stack_top += 1
-            
-            if c2 != -1:
-                stack[stack_top] = c1
-                stack_top += 1
+        else:
+            if stack_top + 1 < 64:
+                if c1 != -1:
+                    stack[stack_top] = c2
+                    stack_top += 1
+                if c2 != -1:
+                    stack[stack_top] = c1
+                    stack_top += 1
             
     force[i, 0] = ax
     force[i, 1] = ay
     force[i, 2] = az
-
 
 @cuda.jit
 def integrate(pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, force, a, H,dt):

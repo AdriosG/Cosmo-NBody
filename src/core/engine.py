@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from src.core.octree import OctreeManager
 from src.kernels.physics_kernels import compute_forces, integrate
+from src.kernels.tree_kernels import build_top_tree_cache
 from src.utils.cosmology import get_hubble_param
 from src.core.camera import Camera
 import time
@@ -39,6 +40,9 @@ class SimulationEngine:
         self.a = config.A_START
         self.da = (config.A_END - config.A_START) / config.N_STEPS
 
+        self.top_nodes = cp.full(self.cache_size, -1, dtype=cp.int32)
+        self.node_to_cache = cp.full(self.tree_manager.n_nodes, -1, dtype=cp.int32)
+
         
 
     def step(self):
@@ -67,6 +71,15 @@ class SimulationEngine:
         
         tree_buffers = self.tree_manager.get_buffers()
         
+        self.node_to_cache.fill(-1)
+
+        build_top_tree_cache[1, 1](
+            tree_buffers["child"],
+            tree_buffers["root"],
+            self.top_nodes,
+            self.node_to_cache,
+            self.cache_size
+        )
 
         for offset in range(0, self.config.N_BODIES, self.config.BATCH_SIZE):
 
@@ -85,6 +98,9 @@ class SimulationEngine:
                 self.config.SOFTENING,
                 self.config.BOX_SIZE,
                 tree_buffers["root"],
+                self.config.CACHE_SIZE,
+                self.top_nodes,
+                self.node_to_cache,
                 offset
             )
 

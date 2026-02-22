@@ -24,6 +24,7 @@ OUTPUT_DIR = "render_output"
 TPB = 256                   # Threads per block for CUDA kernels
 BPG = (N_BODIES + TPB - 1) // TPB # Blocks per grid for CUDA kernels
 BATCH_SIZE = int(5_000)            # Batch size for processing bodies in CUDA kernels
+CACHE_SIZE = 256                   # Cache size for force computation shared array
 
 # --- PHYSICS CONSTANTS ---
 THETA = 0.7
