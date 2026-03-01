@@ -35,7 +35,8 @@ class SimulationEngine:
         self.state = state
         self.tree_manager = OctreeManager(config.N_BODIES, config.TPB)
         self.camera = Camera(config.N_STEPS, config.RES, config)
-
+        
+        self.cache_size = config.CACHE_SIZE
         self.tpb = config.TPB
         self.a = config.A_START
         self.da = (config.A_END - config.A_START) / config.N_STEPS
