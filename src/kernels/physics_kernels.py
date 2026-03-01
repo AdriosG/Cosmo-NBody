@@ -12,7 +12,7 @@ This module contains CUDA kernels for computing the physics behind the simulatio
 """
 
 @cuda.jit(fastmath=True)
-def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, force, theta, G, soft, box, root, cache_size, top_nodes, node_to_cache, off):
+def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, force, theta, G, soft, box, root, top_nodes, node_to_cache, off):
 
     """
     CUDA kernel to compute gravitational forces on particles using a Barnes-Hut tree.
@@ -48,7 +48,8 @@ def compute_forces(pos_x, pos_y, pos_z, children, n_mass, n_com, n_min, n_max, f
     tid = cuda.grid(1)
     tx = cuda.threadIdx.x
     i = tid + off
-
+    cache_size = 256
+    
     sh_mass = cuda.shared.array(cache_size, dtype=float32)
     sh_com_x = cuda.shared.array(cache_size, dtype=float32)
     sh_com_y = cuda.shared.array(cache_size, dtype=float32)
