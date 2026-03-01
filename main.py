@@ -4,6 +4,10 @@ from src.core.state import SimulationState
 from src.utils.cosmology import generate_zeldovich_ics
 import cupy as cp
 import os
+import warnings
+from numba.core.errors import NumbaPerformanceWarning
+
+warnings.simplefilter('ignore', category=NumbaPerformanceWarning) # Ignore Underutilization warnings
 
 print("N-Body Simulation:\n")
 print("-----------------------------------------\n")
