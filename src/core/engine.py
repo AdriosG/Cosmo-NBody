@@ -1,3 +1,5 @@
+from multiprocessing import util
+
 import cupy as cp
 import numpy as np
 from tqdm import tqdm
@@ -7,6 +9,8 @@ from src.kernels.tree_kernels import build_top_tree_cache
 from src.utils.cosmology import get_hubble_param
 from src.core.camera import Camera
 import time
+import threading
+import pynvml as nvml
 """
 
 Simulation Engine module
@@ -44,6 +48,8 @@ class SimulationEngine:
         self.top_nodes = cp.full(self.cache_size, -1, dtype=cp.int32)
         self.node_to_cache = cp.full(self.tree_manager.n_nodes, -1, dtype=cp.int32)
 
+        nvml.nvmlInit()
+        self.handle = nvml.nvmlDeviceGetHandleByIndex(0)
         
 
     def step(self):
@@ -121,11 +127,16 @@ class SimulationEngine:
         """
         Loops over every simulation steps and generates frames into VRAM
         """
+        with tqdm(range(self.config.N_STEPS)) as pbar:
+            for i in pbar:
 
-        for i in tqdm(range(self.config.N_STEPS)):
-            self.step()
-            frame = self.camera.capture(i, *self.state.pos)
-            self.camera.video_buffer[i] = (frame.get() * 255).astype(np.uint8)
+                if i % 20 == 0:
+                    gpu, mem = self.get_gpu_util()
+                    pbar.set_postfix(GPU=f"{gpu}%", MEM=f"{mem}%")
+
+                self.step()
+                frame = self.camera.capture(i, *self.state.pos)
+                self.camera.video_buffer[i] = (frame.get() * 255).astype(np.uint8)
 
     def save(self):
 
@@ -137,4 +148,12 @@ class SimulationEngine:
 
         self.camera.get_frames()
         self.camera.make_video()
+        nvml.nvmlShutdown()
+    
+    def get_gpu_util(self):
+        """
+        Get current GPU utilization and memory usage using NVML.
+        """
+        util = nvml.nvmlDeviceGetUtilizationRates(self.handle)
+        return util.gpu, util.memory
         

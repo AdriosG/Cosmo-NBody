@@ -83,6 +83,7 @@ conda activate cosmo-nbody
 Then install dependencies: *Beaware that issues can rise from versions mismatch from you driver and CUDA installation*
 ```bash
 conda install -c conda-forge numba cupy tqdm pillow
+pip install nvidia-ml-py3
 ```
 
 Optional: check if everything is working properly
