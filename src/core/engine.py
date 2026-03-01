@@ -99,7 +99,6 @@ class SimulationEngine:
                 self.config.SOFTENING,
                 self.config.BOX_SIZE,
                 tree_buffers["root"],
-                self.config.CACHE_SIZE,
                 self.top_nodes,
                 self.node_to_cache,
                 offset
