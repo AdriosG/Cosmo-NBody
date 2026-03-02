@@ -401,6 +401,9 @@ print(f"✔  Results saved to {OUTPUT_CSV}")
 # ---------------------------------------------------------------------------
 
 plt.style.use("bmh")
+plt.rcParams["text.color"] = "black"
+plt.rcParams["axes.titlecolor"] = "black"
+plt.rcParams["axes.labelcolor"] = "black"
 
 N_arr = np.array(N_VALUES, dtype=float)
 
@@ -434,7 +437,7 @@ for idx, theta in enumerate(THETA_LIST):
 # O(N log N) reference using median theta
 t_med = np.array([forces_results[THETA_LIST[2]][n] for n in N_VALUES])
 ref   = nlogn_reference(N_arr, t_med)
-ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.5,
+ax.plot(N_arr, ref, "--", color="#00000093", linewidth=1.5,
         alpha=0.7, label="O(N log N) ref")
 
 ax.set_xscale("log")
@@ -462,25 +465,22 @@ fig.suptitle("Kernel Scaling — O(N) kernels  (log-log)",
              fontsize=14, fontweight="bold", color="#e6edf3")
 axes_flat = axes.flatten()
 
-def on_reference(n_arr, t_arr):
-    """Return a scaled O(N) curve aligned to the median data point."""
-    mid = len(n_arr) // 2
-    ref = n_arr.copy()
-    scale = t_arr[mid] / ref[mid]
-    return ref * scale
+def o_reference(n_arr, t_arr):
+    """Flat O(1) horizontal line at the mean measured time."""
+    return np.full_like(n_arr, np.mean(t_arr))
 
 for idx, name in enumerate(on_kernels):
     ax    = axes_flat[idx]
     t_arr = np.array([results[n][name] for n in N_VALUES])
-    ref   = on_reference(N_arr, t_arr)
+    ref   = o_reference(N_arr, t_arr)
 
     ax.plot(N_arr, t_arr, "o-", color=PALETTE[idx % len(PALETTE)],
             linewidth=2, markersize=4, label="measured")
-    ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.2,
-            alpha=0.7, label="O(N) ref")
+    ax.plot(N_arr, ref, "--", color="#00000093", linewidth=1.2,
+            alpha=1.0, label="O(1) ref")
 
     ax.set_title(name, fontsize=10, color="#e6edf3")
-    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_xscale("log")
     ax.set_xlabel("N", fontsize=8); ax.set_ylabel("ms", fontsize=8)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(
         lambda v, _: f"{int(v/1000)}k" if v >= 1000 else str(int(v))))
