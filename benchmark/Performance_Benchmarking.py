@@ -534,7 +534,7 @@ for idx in range(len(on_kernels), len(axes_flat)):
     axes_flat[idx].set_visible(False)
 
 fig.tight_layout()
-path2a = os.path.join(OUTPUT_DIR, "scaling_on_kernels.png")
+path2a = os.path.join(OUTPUT_DIR, "scaling_kernels.png")
 fig.savefig(path2a, dpi=150, bbox_inches="tight")
 print(f"✔  Saved {path2a}")
 plt.close(fig)
@@ -625,7 +625,7 @@ ax.set_title(
     fontsize=12, fontweight="bold", pad=20
 )
 
-path3 = os.path.join(OUTPUT_DIR, "camembert.png")
+path3 = os.path.join(OUTPUT_DIR, "total_scaling.png")
 fig.savefig(path3, dpi=150, bbox_inches="tight")
 print(f"✔  Saved {path3}")
 plt.close(fig)
