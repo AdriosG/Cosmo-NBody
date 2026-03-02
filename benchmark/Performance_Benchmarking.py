@@ -400,20 +400,7 @@ print(f"✔  Results saved to {OUTPUT_CSV}")
 # Plotting helpers
 # ---------------------------------------------------------------------------
 
-STYLE = {
-    "figure.facecolor": "#0d1117",
-    "axes.facecolor":   "#161b22",
-    "axes.edgecolor":   "#30363d",
-    "axes.labelcolor":  "#e6edf3",
-    "xtick.color":      "#8b949e",
-    "ytick.color":      "#8b949e",
-    "grid.color":       "#21262d",
-    "text.color":       "#e6edf3",
-    "legend.facecolor": "#161b22",
-    "legend.edgecolor": "#30363d",
-}
-plt.rcParams.update(STYLE)
-plt.rcParams["font.family"] = "monospace"
+plt.style.use("bmh")
 
 N_arr = np.array(N_VALUES, dtype=float)
 
@@ -459,30 +446,38 @@ ax.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.5)
 ax.legend(fontsize=10)
 fig.tight_layout()
 path1 = os.path.join(OUTPUT_DIR, "forces_vs_N.png")
-fig.savefig(path1, dpi=150, bbox_inches="tight",
-            facecolor=fig.get_facecolor())
+fig.savefig(path1, dpi=150, bbox_inches="tight")
 print(f"✔  Saved {path1}")
 plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
-# Plot 2 — O(N log N) scaling for every kernel
+# Plot 2a — O(N) kernels (everything except compute_multipoles & compute_forces)
 # ---------------------------------------------------------------------------
 
-fig, axes = plt.subplots(2, 5, figsize=(22, 9))
-fig.suptitle("Kernel Scaling — Time vs N  (log-log)",
+on_kernels = [k for k in all_kernel_names if k not in ("compute_multipoles", "compute_forces")]
+
+fig, axes = plt.subplots(2, 4, figsize=(20, 9))
+fig.suptitle("Kernel Scaling — O(N) kernels  (log-log)",
              fontsize=14, fontweight="bold", color="#e6edf3")
 axes_flat = axes.flatten()
 
-for idx, name in enumerate(all_kernel_names):
-    ax  = axes_flat[idx]
+def on_reference(n_arr, t_arr):
+    """Return a scaled O(N) curve aligned to the median data point."""
+    mid = len(n_arr) // 2
+    ref = n_arr.copy()
+    scale = t_arr[mid] / ref[mid]
+    return ref * scale
+
+for idx, name in enumerate(on_kernels):
+    ax    = axes_flat[idx]
     t_arr = np.array([results[n][name] for n in N_VALUES])
-    ref   = nlogn_reference(N_arr, t_arr)
+    ref   = on_reference(N_arr, t_arr)
 
     ax.plot(N_arr, t_arr, "o-", color=PALETTE[idx % len(PALETTE)],
             linewidth=2, markersize=4, label="measured")
     ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.2,
-            alpha=0.7, label="O(N log N)")
+            alpha=0.7, label="O(N) ref")
 
     ax.set_title(name, fontsize=10, color="#e6edf3")
     ax.set_xscale("log"); ax.set_yscale("log")
@@ -492,13 +487,62 @@ for idx, name in enumerate(all_kernel_names):
     ax.grid(True, which="both", linestyle="--", linewidth=0.4, alpha=0.5)
     ax.legend(fontsize=7)
 
+# hide unused subplots if on_kernels < 8
+for idx in range(len(on_kernels), len(axes_flat)):
+    axes_flat[idx].set_visible(False)
+
 fig.tight_layout()
-path2 = os.path.join(OUTPUT_DIR, "all_kernels_scaling.png")
-fig.savefig(path2, dpi=150, bbox_inches="tight",
-            facecolor=fig.get_facecolor())
-print(f"✔  Saved {path2}")
+path2a = os.path.join(OUTPUT_DIR, "scaling_on_kernels.png")
+fig.savefig(path2a, dpi=150, bbox_inches="tight")
+print(f"✔  Saved {path2a}")
 plt.close(fig)
 
+
+# ---------------------------------------------------------------------------
+# Plot 2b — O(N log N) kernels: compute_multipoles & compute_forces (all thetas)
+# ---------------------------------------------------------------------------
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+fig.suptitle("Kernel Scaling — O(N log N) kernels  (log-log)",
+             fontsize=14, fontweight="bold", color="#e6edf3")
+
+# --- compute_multipoles ---
+ax    = axes[0]
+t_arr = np.array([results[n]["compute_multipoles"] for n in N_VALUES])
+ref   = nlogn_reference(N_arr, t_arr)
+ax.plot(N_arr, t_arr, "o-", color="#d2a8ff", linewidth=2, markersize=4, label="measured")
+ax.plot(N_arr, ref,   "--", color="#8b949e", linewidth=1.2, alpha=0.7, label="O(N log N) ref")
+ax.set_title("compute_multipoles", fontsize=11, color="#e6edf3")
+ax.set_xscale("log"); ax.set_yscale("log")
+ax.set_xlabel("N", fontsize=9); ax.set_ylabel("ms", fontsize=9)
+ax.xaxis.set_major_formatter(mticker.FuncFormatter(
+    lambda v, _: f"{int(v/1000)}k" if v >= 1000 else str(int(v))))
+ax.grid(True, which="both", linestyle="--", linewidth=0.4, alpha=0.5)
+ax.legend(fontsize=8)
+
+# --- compute_forces (all 5 thetas) ---
+ax = axes[1]
+for idx, theta in enumerate(THETA_LIST):
+    t_arr = np.array([forces_results[theta][n] for n in N_VALUES])
+    ax.plot(N_arr, t_arr, "o-", color=PALETTE[idx],
+            linewidth=2, markersize=4, label=f"θ = {theta}")
+
+t_ref = np.array([forces_results[THETA_LIST[2]][n] for n in N_VALUES])
+ref   = nlogn_reference(N_arr, t_ref)
+ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.2, alpha=0.7, label="O(N log N) ref")
+ax.set_title("compute_forces", fontsize=11, color="#e6edf3")
+ax.set_xscale("log"); ax.set_yscale("log")
+ax.set_xlabel("N", fontsize=9); ax.set_ylabel("ms", fontsize=9)
+ax.xaxis.set_major_formatter(mticker.FuncFormatter(
+    lambda v, _: f"{int(v/1000)}k" if v >= 1000 else str(int(v))))
+ax.grid(True, which="both", linestyle="--", linewidth=0.4, alpha=0.5)
+ax.legend(fontsize=8)
+
+fig.tight_layout()
+path2b = os.path.join(OUTPUT_DIR, "scaling_nlogn_kernels.png")
+fig.savefig(path2b, dpi=150, bbox_inches="tight")
+print(f"✔  Saved {path2b}")
+plt.close(fig)
 
 # ---------------------------------------------------------------------------
 # Plot 3 — Camembert (pie chart) of kernel runtime shares at median N
@@ -516,9 +560,7 @@ colors = PALETTE[:len(labels)]
 pairs  = sorted(zip(sizes, labels, colors), reverse=True)
 sizes, labels, colors = zip(*pairs)
 
-fig, ax = plt.subplots(figsize=(9, 9),
-                       facecolor=STYLE["figure.facecolor"])
-ax.set_facecolor(STYLE["figure.facecolor"])
+fig, ax = plt.subplots(figsize=(9, 9))
 
 wedge_props = dict(linewidth=1.2, edgecolor="#0d1117")
 wedges, texts, autotexts = ax.pie(
@@ -542,8 +584,7 @@ ax.set_title(
 )
 
 path3 = os.path.join(OUTPUT_DIR, "camembert.png")
-fig.savefig(path3, dpi=150, bbox_inches="tight",
-            facecolor=fig.get_facecolor())
+fig.savefig(path3, dpi=150, bbox_inches="tight")
 print(f"✔  Saved {path3}")
 plt.close(fig)
 
