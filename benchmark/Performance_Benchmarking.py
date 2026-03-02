@@ -468,7 +468,7 @@ plt.close(fig)
 # Plot 2 — O(N log N) scaling for every kernel
 # ---------------------------------------------------------------------------
 
-fig, axes = plt.subplots(3, 3, figsize=(16, 12))
+fig, axes = plt.subplots(2, 5, figsize=(22, 9))
 fig.suptitle("Kernel Scaling — Time vs N  (log-log)",
              fontsize=14, fontweight="bold", color="#e6edf3")
 axes_flat = axes.flatten()
