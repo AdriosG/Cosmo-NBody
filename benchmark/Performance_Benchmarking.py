@@ -1,13 +1,13 @@
 """
 benchmark.py
 ============
-Standalone kernel benchmarking script for the N-Body cosmological simulation.
+Standalone kernel benchmarking script.
 
-Measures per-kernel runtimes across a range of N (10^4 → 2×10^6),
+Measures per-kernel runtimes across a range of N (10^4 ; 2*10^6),
 logs results to CSV, and produces:
   - Time vs N plots for compute_forces (5 theta values)
   - A pie chart ("camembert") of kernel runtime shares at the median N
-  - O(N log N) reference overlay on each timing plot
+  - O(N log N) reference overlay on compute_forces and compute_multipoles plot 
 """
 
 import os
@@ -26,9 +26,7 @@ from numba.core.errors import NumbaPerformanceWarning
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 warnings.simplefilter("ignore", category=NumbaPerformanceWarning)
 
-# ---------------------------------------------------------------------------
-# Import simulation kernels  (adjust paths if your project layout differs)
-# ---------------------------------------------------------------------------
+#Import kernels
 from src.kernels.morton import compute_codes
 from src.kernels.tree_kernels import (
     build_tree,
@@ -42,9 +40,7 @@ from src.kernels.physics_kernels import compute_forces, integrate
 from src.kernels.render_kernels import render_density
 from src.utils.visualizer import get_mvp_matrix
 
-# ---------------------------------------------------------------------------
-# Benchmark configuration
-# ---------------------------------------------------------------------------
+# Benchamrk configuration
 N_VALUES = [
     10_000,
     15_000,
@@ -68,20 +64,18 @@ WARMUP      = 5
 ITERATIONS  = 10
 TPB         = 256
 CACHE_SIZE  = 256
-RES         = 512          # render grid resolution (kept small for speed)
+RES         = 1024          
 BOX_SIZE    = 1.0
 SOFTENING   = 0.001
 G           = 1.0
-THETA_LIST  = [0.3, 0.5, 0.7, 0.9, 1.1]   # 5 opening angles for forces plot
-THETA_PIE   = 0.7                           # theta used in the camembert
+THETA_LIST  = [0.3, 0.5, 0.7, 0.9, 1.1]
+THETA_PIE   = 0.7                           
 OUTPUT_CSV  = "benchmark_results.csv"
 OUTPUT_DIR  = "benchmark_plots"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def bpg(n: int, tpb: int = TPB) -> int:
     return (n + tpb - 1) // tpb
@@ -93,6 +87,8 @@ def cuda_sync():
 
 def timed_kernel(fn, warmup: int = WARMUP, iters: int = ITERATIONS) -> float:
     """Run fn() warmup+iters times; return mean wall-time (ms) over iters."""
+    
+    # Warmup — let the JIT compile and caches warm up
     for _ in range(warmup):
         fn()
         cuda_sync()
@@ -102,7 +98,7 @@ def timed_kernel(fn, warmup: int = WARMUP, iters: int = ITERATIONS) -> float:
         t0 = time.perf_counter()
         fn()
         cuda_sync()
-        times.append((time.perf_counter() - t0) * 1e3)   # → ms
+        times.append((time.perf_counter() - t0) * 1e3) 
 
     return float(np.mean(times))
 
@@ -126,13 +122,11 @@ def timed_kernel_GPU(fn, warmup: int = WARMUP, iters: int = ITERATIONS) -> float
         end.record()
         end.synchronize()   # blocks CPU until the end event is reached on GPU
 
-        times.append(cp.cuda.get_elapsed_time(start, end))  # ms, float
+        times.append(cp.cuda.get_elapsed_time(start, end))
 
     return float(np.mean(times))
 
-# ---------------------------------------------------------------------------
-# Data factory — creates a fully valid tree state for a given N
-# ---------------------------------------------------------------------------
+# create a state class to hold buffers and initialize with random data
 
 class BenchState:
     """Allocates and populates GPU buffers needed by all kernels."""
@@ -141,7 +135,7 @@ class BenchState:
         self.n = n
         self.n_nodes = 2 * n - 1
 
-        # --- positions & masses ---
+        # --- positions and masses ---
         pos_np = np.random.rand(3, n).astype(np.float32)
         self.pos_x = cp.asarray(pos_np[0])
         self.pos_y = cp.asarray(pos_np[1])
@@ -166,17 +160,16 @@ class BenchState:
         self.n_max    = cp.zeros((self.n_nodes, 3), dtype=cp.float32)
         self.counters = cp.zeros(self.n_nodes, dtype=cp.int32)
 
-        # --- top-tree cache ---
+        # --- Top-tree cache ---
         self.top_nodes    = cp.full(CACHE_SIZE, -1, dtype=cp.int32)
         self.node_to_cache = cp.full(self.n_nodes, -1, dtype=cp.int32)
 
         # --- render grid ---
         self.grid = cp.zeros((RES, RES), dtype=cp.float32)
 
-        # Build a valid tree once so force / cache benchmarks have real data
         self._build_tree()
 
-    # ------------------------------------------------------------------ #
+
     def _build_tree(self):
         n, tpb = self.n, TPB
 
@@ -214,9 +207,7 @@ class BenchState:
         cuda_sync()
 
 
-# ---------------------------------------------------------------------------
-# Per-kernel benchmark functions
-# ---------------------------------------------------------------------------
+# Benchmark functions for each kernel
 
 def bench_compute_codes(s: BenchState, gpu=True) -> float:
     def fn():
@@ -331,7 +322,7 @@ def bench_integrate(s: BenchState, gpu=True) -> float:
 
 
 def bench_render(s: BenchState, gpu=True) -> float:
-    # Build a minimal MVP matrix (no config needed — just a dummy 4×4)
+    # Build a minimal MVP matrix
     eye    = np.array([1.5, 0.2, 1.5], dtype=np.float32)
     target = np.array([0.5, 0.5, 0.5], dtype=np.float32)
     z = (eye - target); z /= np.linalg.norm(z)
@@ -360,9 +351,7 @@ def bench_render(s: BenchState, gpu=True) -> float:
         return timed_kernel(fn)
 
 
-# ---------------------------------------------------------------------------
-# Kernel registry (name → bench function) — forces excluded (handled separately)
-# ---------------------------------------------------------------------------
+# Scalable kernel directory
 
 KERNELS = {
     "compute_codes":       bench_compute_codes,
@@ -376,9 +365,7 @@ KERNELS = {
     "render_density":      bench_render,
 }
 
-# ---------------------------------------------------------------------------
-# Main benchmark loop
-# ---------------------------------------------------------------------------
+#Main benchmarking loop
 
 print("=" * 60)
 print("  N-Body Simulation — Kernel Benchmarking")
@@ -415,12 +402,9 @@ for n in N_VALUES:
     del s   # free VRAM between runs
     cp.get_default_memory_pool().free_all_blocks()
 
-print("\n✔  Benchmarks complete.")
+print("\n-  Benchmarks complete.")
 
-# ---------------------------------------------------------------------------
-# Write CSV
-# ---------------------------------------------------------------------------
-
+# write CSV results
 all_kernel_names = list(KERNELS.keys()) + ["compute_forces"]
 header = ["N"] + all_kernel_names + [f"compute_forces_theta_{t}" for t in THETA_LIST]
 
@@ -432,11 +416,9 @@ with open(OUTPUT_CSV, "w", newline="") as f:
         row += [forces_results[t][n] for t in THETA_LIST]
         w.writerow(row)
 
-print(f"✔  Results saved to {OUTPUT_CSV}")
+print(f"-  Results saved to {OUTPUT_CSV}")
 
-# ---------------------------------------------------------------------------
-# Plotting helpers
-# ---------------------------------------------------------------------------
+#Plotting helpers
 
 plt.style.use("bmh")
 plt.rcParams["text.color"] = "black"
@@ -470,9 +452,7 @@ def nlogn_reference(n_arr, t_arr):
     return ref * scale
 
 
-# ---------------------------------------------------------------------------
-# Plot 1 — compute_forces: Time vs N for 5 theta values
-# ---------------------------------------------------------------------------
+# plot compute_forces scaling for all thetas
 
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.suptitle("compute_forces — Time vs N  (Barnes-Hut, 5 opening angles)",
@@ -498,13 +478,11 @@ ax.legend(fontsize=10)
 fig.tight_layout()
 path1 = os.path.join(OUTPUT_DIR, "forces_vs_N.png")
 fig.savefig(path1, dpi=150, bbox_inches="tight")
-print(f"✔  Saved {path1}")
+print(f"-  Saved {path1}")
 plt.close(fig)
 
 
-# ---------------------------------------------------------------------------
-# Plot 2a — O(N) kernels (everything except compute_multipoles & compute_forces)
-# ---------------------------------------------------------------------------
+#plot all other kernels (except forces) scaling
 
 on_kernels = [k for k in all_kernel_names if k not in ("compute_multipoles", "compute_forces")]
 
@@ -536,13 +514,11 @@ for idx in range(len(on_kernels), len(axes_flat)):
 fig.tight_layout()
 path2a = os.path.join(OUTPUT_DIR, "scaling_kernels.png")
 fig.savefig(path2a, dpi=150, bbox_inches="tight")
-print(f"✔  Saved {path2a}")
+print(f"-  Saved {path2a}")
 plt.close(fig)
 
 
-# ---------------------------------------------------------------------------
-# Plot 2b — O(N log N) kernels: compute_multipoles & compute_forces (all thetas)
-# ---------------------------------------------------------------------------
+# plot compute_multipoles scaling with O(N log N) reference
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle("Kernel Scaling — O(N log N) kernels",
@@ -583,12 +559,10 @@ ax.legend(fontsize=8)
 fig.tight_layout()
 path2b = os.path.join(OUTPUT_DIR, "scaling_nlogn_kernels.png")
 fig.savefig(path2b, dpi=150, bbox_inches="tight")
-print(f"✔  Saved {path2b}")
+print(f"-  Saved {path2b}")
 plt.close(fig)
 
-# ---------------------------------------------------------------------------
-# Plot 3 — Camembert (pie chart) of kernel runtime shares at median N
-# ---------------------------------------------------------------------------
+#plot kernel runtime distribution at median N 
 
 median_n = N_VALUES[len(N_VALUES) // 2]
 shares   = {k: results[median_n][k] for k in all_kernel_names}
@@ -627,12 +601,10 @@ ax.set_title(
 
 path3 = os.path.join(OUTPUT_DIR, "total_scaling.png")
 fig.savefig(path3, dpi=150, bbox_inches="tight")
-print(f"✔  Saved {path3}")
+print(f"-  Saved {path3}")
 plt.close(fig)
 
-# ---------------------------------------------------------------------------
-# Summary table
-# ---------------------------------------------------------------------------
+#summary printout
 
 print(f"\n{'─'*60}")
 print(f"  Runtime summary at N = {median_n:,}")
