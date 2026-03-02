@@ -218,30 +218,39 @@ class BenchState:
 # Per-kernel benchmark functions
 # ---------------------------------------------------------------------------
 
-def bench_compute_codes(s: BenchState) -> float:
+def bench_compute_codes(s: BenchState, gpu=True) -> float:
     def fn():
         compute_codes[bpg(s.n), TPB](
             s.pos_x, s.pos_y, s.pos_z, s.codes, s.indices, s.n
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_reset_tree(s: BenchState) -> float:
+def bench_reset_tree(s: BenchState, gpu=True) -> float:
     bpg_n = bpg(s.n_nodes)
     def fn():
         reset_tree_buffers[bpg_n, TPB](
             s.child, s.parent, s.counters, s.root_idx
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_build_tree(s: BenchState) -> float:
+def bench_build_tree(s: BenchState, gpu=True) -> float:
     def fn():
         build_tree[bpg(s.n), TPB](s.codes, s.child, s.parent)
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_compute_multipoles(s: BenchState) -> float:
+def bench_compute_multipoles(s: BenchState, gpu=True) -> float:
     def fn():
         compute_multipoles[bpg(s.n), TPB](
             s.pos_x, s.pos_y, s.pos_z, s.mass,
@@ -249,34 +258,46 @@ def bench_compute_multipoles(s: BenchState) -> float:
             s.n_mass, s.n_com, s.n_min, s.n_max,
             s.counters
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_normalize_com(s: BenchState) -> float:
+def bench_normalize_com(s: BenchState, gpu=True) -> float:
     bpg_n = bpg(s.n_nodes, 256)
     def fn():
         normalize_com[bpg_n, 256](s.n_mass, s.n_com, s.n_nodes)
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_find_root(s: BenchState) -> float:
+def bench_find_root(s: BenchState, gpu=True) -> float:
     bpg_n = bpg(s.n_nodes)
     def fn():
         find_root[bpg_n, TPB](s.parent, s.root_idx)
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_build_cache(s: BenchState) -> float:
+def bench_build_cache(s: BenchState, gpu=True) -> float:
     def fn():
         s.node_to_cache.fill(-1)
         build_top_tree_cache[1, 1](
             s.child, s.root_idx,
             s.top_nodes, s.node_to_cache, CACHE_SIZE
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_compute_forces(s: BenchState, theta: float) -> float:
+def bench_compute_forces(s: BenchState, theta: float, gpu=True) -> float:
     BATCH = min(5_000, s.n)
     def fn():
         s.force.fill(0)
@@ -290,20 +311,26 @@ def bench_compute_forces(s: BenchState, theta: float) -> float:
                 s.root_idx, s.top_nodes, s.node_to_cache,
                 offset
             )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_integrate(s: BenchState) -> float:
+def bench_integrate(s: BenchState, gpu=True) -> float:
     def fn():
         integrate[bpg(s.n), TPB](
             s.pos_x, s.pos_y, s.pos_z,
             s.vel_x, s.vel_y, s.vel_z,
             s.force, 0.5, 67.8, 1e-4
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
-def bench_render(s: BenchState) -> float:
+def bench_render(s: BenchState, gpu=True) -> float:
     # Build a minimal MVP matrix (no config needed — just a dummy 4×4)
     eye    = np.array([1.5, 0.2, 1.5], dtype=np.float32)
     target = np.array([0.5, 0.5, 0.5], dtype=np.float32)
@@ -327,7 +354,10 @@ def bench_render(s: BenchState) -> float:
         render_density[bpg(s.n), TPB](
             s.pos_x, s.pos_y, s.pos_z, s.grid, mvp, RES
         )
-    return timed_kernel(fn)
+    if gpu:
+        return timed_kernel_GPU(fn)
+    else:
+        return timed_kernel(fn)
 
 
 # ---------------------------------------------------------------------------
@@ -460,7 +490,6 @@ ax.plot(N_arr, ref, "--", color="#00000093", linewidth=1.5,
         alpha=0.7, label="O(N log N) ref")
 
 ax.set_xscale("log")
-#ax.set_yscale("log")
 ax.set_xlabel("N  (number of bodies)", fontsize=11)
 ax.set_ylabel("Time  (ms)", fontsize=11)
 ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
