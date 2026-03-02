@@ -480,7 +480,7 @@ plt.close(fig)
 on_kernels = [k for k in all_kernel_names if k not in ("compute_multipoles", "compute_forces")]
 
 fig, axes = plt.subplots(2, 4, figsize=(20, 9))
-fig.suptitle("Kernel Scaling — O(N) kernels  (log-log)",
+fig.suptitle("Kernel Scaling",
              fontsize=14, fontweight="bold")
 axes_flat = axes.flatten()
 
@@ -516,7 +516,7 @@ plt.close(fig)
 # ---------------------------------------------------------------------------
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-fig.suptitle("Kernel Scaling — O(N log N) kernels  (log-log)",
+fig.suptitle("Kernel Scaling — O(N log N) kernels",
              fontsize=14, fontweight="bold")
 
 # --- compute_multipoles ---
