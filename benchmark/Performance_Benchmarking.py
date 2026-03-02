@@ -405,7 +405,7 @@ plt.rcParams["text.color"] = "black"
 plt.rcParams["axes.titlecolor"] = "black"
 plt.rcParams["axes.labelcolor"] = "black"
 plt.rcParams.update({
-    "text.usetex": True,
+    "text.usetex": False,
     "font.family": "serif",
     "font.serif": ["Latin Modern Roman"],
 })
