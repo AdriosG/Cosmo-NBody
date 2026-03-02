@@ -427,7 +427,7 @@ def nlogn_reference(n_arr, t_arr):
 
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.suptitle("compute_forces — Time vs N  (Barnes-Hut, 5 opening angles)",
-             fontsize=13, fontweight="bold", color="#e6edf3", y=1.01)
+             fontsize=13, fontweight="bold", y=1.01)
 
 for idx, theta in enumerate(THETA_LIST):
     t_arr = np.array([forces_results[theta][n] for n in N_VALUES])
@@ -462,24 +462,18 @@ on_kernels = [k for k in all_kernel_names if k not in ("compute_multipoles", "co
 
 fig, axes = plt.subplots(2, 4, figsize=(20, 9))
 fig.suptitle("Kernel Scaling — O(N) kernels  (log-log)",
-             fontsize=14, fontweight="bold", color="#e6edf3")
+             fontsize=14, fontweight="bold")
 axes_flat = axes.flatten()
 
-def o_reference(n_arr, t_arr):
-    """Flat O(1) horizontal line at the mean measured time."""
-    return np.full_like(n_arr, np.mean(t_arr))
 
 for idx, name in enumerate(on_kernels):
     ax    = axes_flat[idx]
     t_arr = np.array([results[n][name] for n in N_VALUES])
-    ref   = o_reference(N_arr, t_arr)
 
     ax.plot(N_arr, t_arr, "o-", color=PALETTE[idx % len(PALETTE)],
             linewidth=2, markersize=4, label="measured")
-    ax.plot(N_arr, ref, "--", color="#00000093", linewidth=1.2,
-            alpha=1.0, label="O(1) ref")
 
-    ax.set_title(name, fontsize=10, color="#e6edf3")
+    ax.set_title(name, fontsize=10)
     ax.set_xscale("log")
     ax.set_xlabel("N", fontsize=8); ax.set_ylabel("ms", fontsize=8)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(
@@ -504,7 +498,7 @@ plt.close(fig)
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle("Kernel Scaling — O(N log N) kernels  (log-log)",
-             fontsize=14, fontweight="bold", color="#e6edf3")
+             fontsize=14, fontweight="bold")
 
 # --- compute_multipoles ---
 ax    = axes[0]
@@ -512,7 +506,7 @@ t_arr = np.array([results[n]["compute_multipoles"] for n in N_VALUES])
 ref   = nlogn_reference(N_arr, t_arr)
 ax.plot(N_arr, t_arr, "o-", color="#d2a8ff", linewidth=2, markersize=4, label="measured")
 ax.plot(N_arr, ref,   "--", color="#8b949e", linewidth=1.2, alpha=0.7, label="O(N log N) ref")
-ax.set_title("compute_multipoles", fontsize=11, color="#e6edf3")
+ax.set_title("compute_multipoles", fontsize=11)
 ax.set_xscale("log"); ax.set_yscale("log")
 ax.set_xlabel("N", fontsize=9); ax.set_ylabel("ms", fontsize=9)
 ax.xaxis.set_major_formatter(mticker.FuncFormatter(
@@ -530,7 +524,7 @@ for idx, theta in enumerate(THETA_LIST):
 t_ref = np.array([forces_results[THETA_LIST[2]][n] for n in N_VALUES])
 ref   = nlogn_reference(N_arr, t_ref)
 ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.2, alpha=0.7, label="O(N log N) ref")
-ax.set_title("compute_forces", fontsize=11, color="#e6edf3")
+ax.set_title("compute_forces", fontsize=11)
 ax.set_xscale("log"); ax.set_yscale("log")
 ax.set_xlabel("N", fontsize=9); ax.set_ylabel("ms", fontsize=9)
 ax.xaxis.set_major_formatter(mticker.FuncFormatter(
@@ -580,7 +574,7 @@ for at in autotexts:
 
 ax.set_title(
     f"Kernel Runtime Distribution\n(N = {median_n:,},  θ = {THETA_PIE},  total ≈ {total:.1f} ms)",
-    fontsize=12, fontweight="bold", color="#e6edf3", pad=20
+    fontsize=12, fontweight="bold", pad=20
 )
 
 path3 = os.path.join(OUTPUT_DIR, "camembert.png")
