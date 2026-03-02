@@ -420,6 +420,7 @@ N_arr = np.array(N_VALUES, dtype=float)
 PALETTE = [
     "#58a6ff", "#3fb950", "#f78166", "#d2a8ff",
     "#ffa657", "#79c0ff", "#56d364", "#ff7b72",
+    "#e3b341", "#bc8cff"
 ]
 
 def nlogn_reference(n_arr, t_arr):
@@ -450,7 +451,7 @@ ax.plot(N_arr, ref, "--", color="#8b949e", linewidth=1.5,
         alpha=0.7, label="O(N log N) ref")
 
 ax.set_xscale("log")
-ax.set_yscale("log")
+#ax.set_yscale("log")
 ax.set_xlabel("N  (number of bodies)", fontsize=11)
 ax.set_ylabel("Time  (ms)", fontsize=11)
 ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
