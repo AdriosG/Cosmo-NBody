@@ -404,13 +404,25 @@ plt.style.use("bmh")
 plt.rcParams["text.color"] = "black"
 plt.rcParams["axes.titlecolor"] = "black"
 plt.rcParams["axes.labelcolor"] = "black"
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Latin Modern Roman"],
+})
 
 N_arr = np.array(N_VALUES, dtype=float)
 
 PALETTE = [
-    "#58a6ff", "#3fb950", "#f78166", "#d2a8ff",
-    "#ffa657", "#79c0ff", "#56d364", "#ff7b72",
-    "#e3b341", "#bc8cff"
+    "#1B3A57",
+    "#5C677D",
+    "#9E2A2B",
+    "#6A994E",
+    "#386641",
+    "#A7C957",
+    "#344E41",
+    "#7F5539",
+    "#B08968",
+    "#6D597A"
 ]
 
 def nlogn_reference(n_arr, t_arr):
@@ -564,7 +576,7 @@ wedges, texts, autotexts = ax.pie(
     autopct=lambda p: f"{p:.1f}%" if p > 2 else "",
     startangle=140,
     wedgeprops=wedge_props,
-    textprops={"color": "#e6edf3", "fontsize": 9},
+    textprops={"color": "#0d1117", "fontsize": 9},
     pctdistance=0.78,
 )
 for at in autotexts:
