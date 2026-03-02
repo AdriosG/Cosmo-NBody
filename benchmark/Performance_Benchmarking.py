@@ -407,22 +407,21 @@ plt.rcParams["axes.labelcolor"] = "black"
 plt.rcParams.update({
     "text.usetex": False,
     "font.family": "serif",
-    "font.serif": ["Latin Modern Roman"],
 })
 
 N_arr = np.array(N_VALUES, dtype=float)
 
 PALETTE = [
-    "#1B3A57",
-    "#5C677D",
-    "#9E2A2B",
-    "#6A994E",
-    "#386641",
-    "#A7C957",
-    "#344E41",
-    "#7F5539",
-    "#B08968",
-    "#6D597A"
+    "#4E79A7",  # blue
+    "#F28E2B",  # orange
+    "#59A14F",  # green
+    "#E15759",  # red
+    "#B07AA1",  # purple
+    "#76B7B2",  # teal
+    "#EDC948",  # mustard
+    "#9C755F",  # brown
+    "#BAB0AC",  # gray
+    "#2F4B7C"   # deep navy
 ]
 
 def nlogn_reference(n_arr, t_arr):
@@ -516,7 +515,7 @@ fig.suptitle("Kernel Scaling — O(N log N) kernels  (log-log)",
 ax    = axes[0]
 t_arr = np.array([results[n]["compute_multipoles"] for n in N_VALUES])
 ref   = nlogn_reference(N_arr, t_arr)
-ax.plot(N_arr, t_arr, "o-", color="#d2a8ff", linewidth=2, markersize=4, label="measured")
+ax.plot(N_arr, t_arr, "o-", color="#E15759", linewidth=2, markersize=4, label="measured")
 ax.plot(N_arr, ref,   "--", color="#8b949e", linewidth=1.2, alpha=0.7, label="O(N log N) ref")
 ax.set_title("compute_multipoles", fontsize=11)
 ax.set_xscale("log"); ax.set_yscale("log")
