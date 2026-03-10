@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.core.state import SimulationState
-from src.core.engine import Engine
+from src.core.engine import SimulationEngine
 from src.utils.config import Config
 
 # Simulation parameters
