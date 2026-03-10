@@ -86,8 +86,8 @@ def run_benchmark():
 
     # Initialize the simulation state and engine
     config = Config
-    state = SimulationState(N_PARTICLES, pos_init, vel_init)
-    engine = SimulationEngine(config)
+    state = SimulationState(N_PARTICLES)
+    engine = SimulationEngine(config, state)
 
     energies = []
     times = []
