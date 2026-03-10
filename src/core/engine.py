@@ -11,8 +11,6 @@ from src.core.camera import Camera
 import time
 import threading
 import pynvml as nvml
-import cProfile
-import pstats
 """
 
 Simulation Engine module
@@ -23,17 +21,6 @@ It manages the time stepping, the cosmological scaling and the GPU workload dist
 """
 
 
-
-def profile(func):
-    def wrapper(*args, **kwargs):
-        profiler = cProfile.Profile()
-        profiler.enable()
-        result = func(*args, **kwargs)
-        profiler.disable()
-        stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.CUMULATIVE)
-        stats.print_stats(15)
-        return result
-    return wrapper
 
 class SimulationEngine:
 
@@ -64,13 +51,85 @@ class SimulationEngine:
         nvml.nvmlInit()
         self.handle = nvml.nvmlDeviceGetHandleByIndex(0)
         
-    @profile
-    def profile_run(self):
+
+    def step(self):
+        
         """
-        Loops over every simulation steps and generates frames into VRAM, with profiling.
+        Compute a single step of simulation (does not handle rendering)
+        """
+
+        cp.cuda.Device().synchronize()
+        
+        H = get_hubble_param(self.a, self.config)
+        dt_physics = self.da / (self.a * H) * 0.8
+        
+        self.state.sort_buffer_by_morton(self.config)
+
+        self.tree_manager.build(
+            self.state.pos,
+            self.state.mass,
+            self.state.codes
+        )
+        
+
+
+        
+        self.state.force.fill(0)
+        
+        tree_buffers = self.tree_manager.get_buffers()
+        
+        self.node_to_cache.fill(-1)
+
+        build_top_tree_cache[1, 1](
+            tree_buffers["child"],
+            tree_buffers["root"],
+            self.top_nodes,
+            self.node_to_cache,
+            self.cache_size
+        )
+
+        for offset in range(0, self.config.N_BODIES, self.config.BATCH_SIZE):
+
+            c = min(self.config.BATCH_SIZE, self.config.N_BODIES - offset)
+
+            compute_forces[(c+self.tpb-1)//self.tpb, self.tpb](
+                *self.state.pos,
+                tree_buffers["child"],
+                tree_buffers["mass"],
+                tree_buffers["com"],
+                tree_buffers["min"],
+                tree_buffers["max"],
+                self.state.force,
+                self.config.THETA,
+                self.config.G,
+                self.config.SOFTENING,
+                self.config.BOX_SIZE,
+                tree_buffers["root"],
+                self.top_nodes,
+                self.node_to_cache,
+                offset
+            )
+
+
+        integrate[self.config.BPG, self.tpb](
+            *self.state.pos,
+            *self.state.vel,
+            self.state.force,
+            self.a,
+            H,
+            dt_physics
+        )
+
+        self.a += self.da
+    
+    def run(self):
+
+        """
+        Loops over every simulation steps and generates frames into VRAM
         """
         with tqdm(range(self.config.N_STEPS)) as pbar:
             for i in pbar:
+
                 if i % 20 == 0:
                     gpu, mem = self.get_gpu_util()
                     pbar.set_postfix(GPU=f"{gpu}%", MEM=f"{mem}%")
@@ -78,12 +137,6 @@ class SimulationEngine:
                 self.step()
                 frame = self.camera.capture(i, *self.state.pos)
                 self.camera.video_buffer[i] = (frame.get() * 255).astype(np.uint8)
-
-    def run(self):
-        """
-        Loops over every simulation steps and generates frames into VRAM.
-        """
-        self.profile_run()
 
     def save(self):
 
