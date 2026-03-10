@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.core.state import SimulationState
 from src.core.engine import SimulationEngine
-from src.utils.config import Config
+import src.utils.config as Config
 
 # Simulation parameters
 N_PARTICLES = 10_000
