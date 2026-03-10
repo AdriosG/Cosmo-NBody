@@ -17,7 +17,7 @@ vx_d, vy_d, vz_d = initial_vel[0], initial_vel[1], initial_vel[2]
 
 print("Simulation Initialization...\n")
 
-simulation_state = SimulationState(consts.N_BODIES)
+simulation_state = SimulationState(consts.N_BODIES, initial_pos, initial_vel)
 physics_engine = SimulationEngine(consts, simulation_state)
 
 physics_engine.run()
