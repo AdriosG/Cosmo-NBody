@@ -85,9 +85,9 @@ def run_benchmark():
                 cp.zeros(N_PARTICLES, dtype=cp.float32))
 
     # Initialize the simulation state and engine
-    config = Config(n_bodies=N_PARTICLES)
+    config = Config
     state = SimulationState(N_PARTICLES, pos_init, vel_init)
-    engine = Engine(config)
+    engine = SimulationEngine(config)
 
     energies = []
     times = []
