@@ -26,6 +26,10 @@ The comsological accuracy aspect of the project is largely under exploited here.
 
 ## Core Physics & Algorithmic Architecture
 
+### 0. AI/LLM in this project
+This project was made without using AI to write any code. As a proof of concept and out of curiosity, a set of LLM were tasked to write the complexity benchmark programm, the result were largely unsatisfying. The first propositions didn't naturally take into account all the kernels and the initial conditions were not adaptative. The AI had trouble working with CuPy and JIT at the same time, resulting in weird usage of profiling fuctions.\
+The details and results are explicited in the paper linked with the project.\
+LLM's are really powerful tools, however, when it comes to handling large multi files projects, the results are not yet fully satisfaying.
 ### 1. Cosmological Initial Conditions (Zel'dovich Approximation)
 Standard random distributions do not accurately represent the early universe. This engine generates initial conditions by applying the [**Zel'dovich Approximation**](https://arxiv.org/pdf/1401.5466) to a primordial power spectrum.
 * Computes the initial density perturbation field in Fourier space using $P(k) \propto k^{-2.5}$.
@@ -131,7 +135,7 @@ You can execute simulation via `main.py` file.
 
 ---
 
-## 📷 Some Renders!
+## Some Renders!
 
 Here are some renders made troughout the developpment of this project.
 
